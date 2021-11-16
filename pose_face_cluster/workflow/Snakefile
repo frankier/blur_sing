@@ -1,0 +1,144 @@
+from os.path import join as pjoin
+
+
+WORK = config.get("WORK", "work")
+GCN_CONFIG = config.get("GCN_CONFIG", os.environ["GCN_CONFIG"])
+SCRIPTS = pjoin(workflow.basedir, 'scripts')
+
+VIDEO_IDS = [
+    "9U4Ha9HQvMo",
+    "xTXz_4u-4mc",
+    "CJkWS4t4l0k",
+    "Q_OIXfkXEj0",
+    "qXD9HnrNrvk",
+    "XUT8ec24anM",
+    "BOyebcrVWb4",
+    "uFpK_r-jEXg",
+]
+
+
+rule download_videos:
+    "Downloads the video corpus"
+    input:
+        directories = directories.output,
+    output:
+        pjoin(WORK, "{video_id}.mp4")
+    run:
+        shell("mkdir -p " + WORK)
+        for video_id in VIDEO_IDS:
+            shell(f"youtube-dl -o {video_id}.mp4 'https://www.youtube.com/watch?v={video_id}'")
+
+
+rule segment_shots:
+    "Runs the ffprobe shot segmentor"
+    input:
+        video = pjoin(WORK, "{base}.mp4")
+    output:
+        scenes = pjoin(WORK, "{base}.ffprobe.scene.txt")
+    script:
+        pjoin(SCRIPTS, "ffprobe.py")
+
+
+rule dump_skels_untracked:
+    "Runs BODY_25 untracked OpenPose dumping"
+    input:
+        video = pjoin(WORK, "{base}.mp4")
+    output:
+        pjoin(WORK, "{base}.untracked.h5")
+    shell:
+        "python -m skelshop dump " +
+        "--mode BODY_25 " +
+        "{input.video} " +
+        "{output}"
+
+
+rule track_skels:
+    "Runs tracking of untracked OpenPose skeletons"
+    input:
+        gcn_config = ancient(GCN_CONFIG),
+        untracked = pjoin(WORK, "{base}.untracked.h5"),
+        scenes = pjoin(WORK, "{base}.ffprobe.scene.txt")
+    output:
+        pjoin(WORK, "{base}.tracked.h5")
+    shell:
+        "python -m skelshop filter " +
+        "--track " +
+        "--track-conf opt_lighttrack " +
+        "--pose-matcher-config {input.gcn_config} " +
+        "--shot-seg=ffprobe " +
+        "--segs-file {input.scenes} " +
+        "{input.untracked} {output}"
+
+
+rule get_best_cands:
+    input:
+        pjoin(WORK, "{base}.tracked.h5")
+    output:
+        pjoin(WORK, "{base}.bestcands.csv")
+    shell:
+        "python -m skelshop face bestcands conf-face3 {input} {output}"
+
+
+rule select_face:
+    input:
+        bestcands=pjoin(WORK, "{base}.bestcands.csv"),
+        video=pjoin(WORK, "{base}.mp4"),
+        skels=pjoin(WORK, "{base}.tracked.h5")
+    output:
+        pjoin(WORK, "{base}.selectface.h5")
+    shell:
+        "python -m skelshop face embedselect"
+        " --from-skels {input.skels}"
+        " --batch-size 256"
+        " {input.video} {input.bestcands} {output}"
+
+
+def write_corpusdesc(outfn, segsout):
+    VALS = {
+        "video": "{base}.mp4",
+        "group": "{base}.ffprobe.scene.txt",
+        "group_typ": "ffprobe",
+        "faces": "{base}.selectface.h5",
+        "segsout": segsout,
+        "untracked_skels": "{base}.untracked.h5",
+        "tracked_skels": "{base}.tracked.h5",
+        "bestcands": "{base}.bestcands.csv",
+    }
+    with open(outfn, "w") as out:
+        out.write(",".join(VALS.keys()) + "\n")
+        for base in VIDEO_IDS:
+            cells = []
+            for key, tmpl in VALS.items()
+                cells.append(tmpl.format(base=pjoin(WORK, base)))
+            out.write(
+                ",".join(cells) + "\n"
+            )
+
+
+rule mk_rnndbscan_corpusdesc:
+    input:
+        (
+            [pjoin(WORK, fn + ".tracked.h5") for fn in VIDEO_IDS] +
+            [pjoin(WORK, fn + ".selectface.h5") for fn in VIDEO_IDS]
+        )
+    output:
+        pjoin(WORK, "corpusdesc.rnndbscan.csv")
+    run:
+        write_corpusdesc(output[0], "{base}.rnndbscan.clus.csv")
+
+
+rule rnndbscan_clus:
+    input:
+        pjoin(WORK, "corpusdesc.rnndbscan.csv")
+    output:
+        proto = pjoin(WORK, "proto.rnndbscan.csv"),
+        model = pjoin(WORK, "model.rnndbscan.pkl")
+    shell:
+        "python -m skelshop iden clus fixed " +
+        "{input} " +
+        "--algorithm rnn-dbscan " +
+        "--ann-lib pynndescent " +
+        "--knn 5 " +
+        "--model-out {output.model} " +
+        "--proto-out {output.proto} " +
+        "--num-protos 10"
