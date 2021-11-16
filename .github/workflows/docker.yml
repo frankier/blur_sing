@@ -18,7 +18,63 @@ jobs:
         uses: whoan/docker-build-with-cache-action@v5
         with:
           registry: ghcr.io
-          image_name: frankier/ray_param_search
+          image_name: frankier/blur_slurm_ray_param_search
           context: ray_param_search
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  dispersion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Build/push
+        uses: whoan/docker-build-with-cache-action@v5
+        with:
+          registry: ghcr.io
+          image_name: frankier/blur_slurm_dispersion
+          context: dispersion
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+  dispersion_tnpp:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Build/push
+        uses: whoan/docker-build-with-cache-action@v5
+        with:
+          registry: ghcr.io
+          image_name: frankier/blur_slurm_dispersion_tnpp
+          context: dispersion
+          dockerfile: Dockerfile.tnpp
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+
+  pose_face_cluster:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Build/push
+        uses: whoan/docker-build-with-cache-action@v5
+        with:
+          registry: ghcr.io
+          image_name: frankier/blur_slurm_pose_face_cluster
+          context: dispersion
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
