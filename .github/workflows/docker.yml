@@ -19,6 +19,6 @@ jobs:
         with:
           registry: ghcr.io
           image_name: frankier/wordfreak
-          dockerfile: ray_param_search/Dockerfile
+          context: ray_param_search
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
