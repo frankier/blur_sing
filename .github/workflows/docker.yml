@@ -18,7 +18,7 @@ jobs:
         uses: whoan/docker-build-with-cache-action@v5
         with:
           registry: ghcr.io
-          image_name: frankier/wordfreak
+          image_name: frankier/ray_param_search
           context: ray_param_search
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
