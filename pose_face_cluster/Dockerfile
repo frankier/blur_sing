@@ -1,10 +1,12 @@
 FROM ghcr.io/frankier/skelshop_nvcaffe:latest
 
-WORKDIR /opt/blur_sing
+WORKDIR /opt/pose_face_cluster
 
 RUN mkdir -p workflow/rules/ workflow/scripts/ && \
 	ln -sf /opt/skelshop/workflow/rules/*.smk workflow/rules/ && \
 	ln -sf /opt/skelshop/workflow/scripts/*.py workflow/scripts/
+
+ADD workflow workflow
 
 RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
 	chmod a+rx /usr/local/bin/youtube-dl
