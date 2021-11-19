@@ -2,7 +2,13 @@ from os.path import join as pjoin
 
 
 WORK = config.get("WORK", "work")
-GCN_CONFIG = config.get("GCN_CONFIG", os.environ["GCN_CONFIG"])
+GCN_CONFIG = config.get(
+    "GCN_CONFIG",
+    os.environ.get(
+        "GCN_CONFIG",
+        pjoin(os.environ["SETUP_WORK"], "gcn_config.yaml")
+    )
+)
 SCRIPTS = pjoin(workflow.basedir, 'scripts')
 
 VIDEO_IDS = [
@@ -108,7 +114,7 @@ def write_corpusdesc(outfn, segsout):
         out.write(",".join(VALS.keys()) + "\n")
         for base in VIDEO_IDS:
             cells = []
-            for key, tmpl in VALS.items()
+            for key, tmpl in VALS.items():
                 cells.append(tmpl.format(base=pjoin(WORK, base)))
             out.write(
                 ",".join(cells) + "\n"
