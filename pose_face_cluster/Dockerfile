@@ -11,4 +11,6 @@ ADD workflow workflow
 RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl && \
 	chmod a+rx /usr/local/bin/youtube-dl
 
+RUN ln /.skelshop_env /.singularity.d/env/89-environment.sh
+
 ENTRYPOINT ["/usr/bin/bash", "/.skelshop_entrypoint"]
