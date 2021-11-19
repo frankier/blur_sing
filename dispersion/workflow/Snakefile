@@ -5,73 +5,55 @@ from os import chdir
 
 
 DOWNLOADS = "downloads"
-OUTPUTS = "outputs"
+WORK = "work"
 
 
-df = pandas.DataFrame.from_records(
-    columns=["lang", "genre", "corpus", "urls", "type", "has_lemmas"],
-    data=[
-        ("fi", "subtitles", "opensub18", ["https://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/parsed/fi.zip"], "opus-opensub18", True),
-        ("fi", "web", "oscar", ["https://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/parsed/fi.zip"], "conllu", True),
-    ]
-)
-flat_df = df.explode(["urls"]).rename(columns={"urls": "url"})
-flat_df["basename"] = flat_df["url"].map(lambda url: url.rsplit("/", 1)[-1])
-full_paramspace = Paramspace(df)
-full_flat_paramspace = Paramspace(flat_df)
-df_key = ["lang", "genre", "corpus", "basename"]
-corpus_key = df_key[1:-1]
-#basename_url_lookup = dict(zip(flat_df[df_key], flat_df["url"]))
-basename_df = flat_df[df_key]
-basename_paramspace = Paramspace(basename_df)
-corpus_paramspace = Paramspace(df[corpus_key])
+OPENSUBTITLES_URL = "https://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/parsed/fi.zip"
 
 
-def pick_df_dict(df, dic):
-    return df[(df[list(dic.keys())] == pandas.Series(dic)).all(axis=1)]
-
-
-rule all_divergences:
-    input:
-        expand(pjoin(OUTPUTS, "{params}.parquet"), params=corpus_paramspace.instance_patterns)
-
-
-def get_url(wc):
-    inst = full_flat_paramspace.instance(wc)
-    sub_df = pick_df_dict(flat_df, inst)
-    res = sub_df["url"].iloc[0]
-    return res
-
-
-rule download:
+rule download_opensubtitles:
     output:
-        pjoin(DOWNLOADS,  other_paramspace.wildcard_pattern)
-    params:
-        url = get_url
+        pjoin(DOWNLOADS, "opensubs18.fi.zip)
     shell:
-        "mkdir -p $(dirname {output}) && " + \
-        " wget " + \
-        " {params.url}" + \
+        "mkdir -p $(dirname {output}) && " +
+        " wget " +
+        " {params.url}" +
         " -O {output}"
 
 
-def divergences_input(wildcards):
-    corpus_row = corpus_paramspace.instance(wildcards)
-    sub_df = pick_df_dict(flat_df, corpus_row)[df_key]
-    return [pjoin(DOWNLOADS, inst) for inst in Paramspace(sub_df).instance_patterns]
-
-
-rule get_divergences:
+rule run_tnpp:
     input:
-        divergences_input
-    params:
-        corpus_row = lambda wc: pick_df_dict(basename_df, corpus_paramspace.instance(wc))
+        pjoin(DOWNLOADS, "fi_part_1.txt.gz")
     output:
-        pjoin(OUTPUTS, corpus_paramspace.wildcard_pattern + ".parquet")
+        pjoin(WORK, "oscar.conllu")
+    singularity:
+        "docker://ghcr.io/frankier/blur_slurm_dispersion_tnpp@sha256:bf7a2a7e4fdfe1c94578fa6a5480d584f3e16bdf02c1eeb5f8bf9780bfba734c"
+    shell:
+        "mkdir -p $(dirname {output}) && " +
+        " PYTHONPATH=/usr/src/app/:${{PYTHONPATH:-}} " +
+        " gzcat {input} | head 50000 | python -m full_pipeline_stream " +
+        " > {output}"
+
+
+rule get_divergences_opensubs18_fi:
+    input:
+        pjoin(WORK, "opensubs18.fi.zip)
+    output:
+        pjoin(WORK, "opensubs18.fi.parquet")
+    shell:
+        "mk_disp --lemma" +
+        " --corpus-type opensubs18 " +
+        " {output}" +
+        " {input}"
+
+
+rule get_divergences_oscar_fi:
+    input:
+        pjoin(WORK, "oscar.fi.conllu")
+    output:
+        pjoin(WORK, "oscar.fi.parquet")
     run:
-        shell(
-            "mk_disp " + ("--lemma" if params.corpus_row["has_lemmas"] else "") +
-            " --corpus-type " + params.corpus_row["type"] +
-            " {output}" +
-            " {input}"
-        )
+        "mk_disp --lemma" +
+        " --corpus-type conllu " +
+        " {output}" +
+        " {input}"
