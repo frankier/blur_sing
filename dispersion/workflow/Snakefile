@@ -11,33 +11,39 @@ WORK = "work"
 OPENSUBTITLES_URL = "https://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/parsed/fi.zip"
 
 
+rule all:
+    input:
+        pjoin(WORK, "opensubs18.fi.parquet"),
+        pjoin(WORK, "oscar.fi.parquet")
+
+
 rule download_opensubtitles:
     output:
-        pjoin(DOWNLOADS, "opensubs18.fi.zip)
+        pjoin(DOWNLOADS, "opensubs18.fi.zip")
     shell:
-        "mkdir -p $(dirname {output}) && " +
-        " wget " +
-        " {params.url}" +
-        " -O {output}"
+        "mkdir -p " + WORK + " && " +
+        " wget " + OPENSUBTITLES_URL + " -O {output}"
 
 
 rule run_tnpp:
     input:
         pjoin(DOWNLOADS, "fi_part_1.txt.gz")
     output:
-        pjoin(WORK, "oscar.conllu")
+        pjoin(WORK, "oscar.fi.conllu")
     singularity:
         "docker://ghcr.io/frankier/blur_slurm_dispersion_tnpp@sha256:bf7a2a7e4fdfe1c94578fa6a5480d584f3e16bdf02c1eeb5f8bf9780bfba734c"
     shell:
-        "mkdir -p $(dirname {output}) && " +
-        " PYTHONPATH=/usr/src/app/:${{PYTHONPATH:-}} " +
-        " gzcat {input} | head 50000 | python -m full_pipeline_stream " +
+        "mkdir -p " + WORK + " && " +
+        " zcat {input} | head -50000 " +
+        " | python -m full_pipeline_stream " +
+        " --device 0 " +
+        " --conf-yaml models_fi_tdt_dia/pipelines.yaml " +
         " > {output}"
 
 
 rule get_divergences_opensubs18_fi:
     input:
-        pjoin(WORK, "opensubs18.fi.zip)
+        pjoin(DOWNLOADS, "opensubs18.fi.zip")
     output:
         pjoin(WORK, "opensubs18.fi.parquet")
     shell:
@@ -52,8 +58,8 @@ rule get_divergences_oscar_fi:
         pjoin(WORK, "oscar.fi.conllu")
     output:
         pjoin(WORK, "oscar.fi.parquet")
-    run:
-        "mk_disp --lemma" +
+    shell:
+        "mk_disp --lemma " +
         " --corpus-type conllu " +
-        " {output}" +
-        " {input}"
+        " {output} " +
+        " {input} "
