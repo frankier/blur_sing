@@ -1,6 +1,7 @@
 from os.path import join as pjoin
 
 
+config["FFPROBE_BIN"] = which("ffprobe")
 WORK = config.get("WORK", "work")
 GCN_CONFIG = config.get(
     "GCN_CONFIG",
