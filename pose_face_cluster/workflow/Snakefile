@@ -23,16 +23,23 @@ VIDEO_IDS = [
 ]
 
 
+rule all:
+    input:
+        pjoin(WORK, "model.rnndbscan.pkl")
+
+
 rule download_videos:
     "Downloads the video corpus"
-    input:
-        directories = directories.output,
     output:
-        pjoin(WORK, "{video_id}.mp4")
-    run:
-        shell("mkdir -p " + WORK)
-        for video_id in VIDEO_IDS:
-            shell(f"youtube-dl -o {video_id}.mp4 'https://www.youtube.com/watch?v={video_id}'")
+        [pjoin(WORK, video_id + ".mp4") for video_id in VIDEO_IDS]
+    shell:
+        "mkdir -p " + WORK + " && " +
+        " cd " + WORK + " && " +
+        " youtube-dl " +
+        " --format 'bestvideo+bestaudio[ext=m4a]/bestvideo+bestaudio/best' " +
+        " --merge-output-format mp4 " +
+        " -o '%(id)s.%(ext)s' " +
+        " ".join((f"'https://www.youtube.com/watch?v={video_id}'" for video_id in VIDEO_IDS))
 
 
 rule segment_shots:
