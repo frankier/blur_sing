@@ -34,11 +34,11 @@ rule run_tnpp:
         "docker://ghcr.io/frankier/blur_slurm_dispersion_tnpp@sha256:bf7a2a7e4fdfe1c94578fa6a5480d584f3e16bdf02c1eeb5f8bf9780bfba734c"
     shell:
         "mkdir -p " + WORK + " && " +
-        " zcat {input} | head -50000 " +
-        " | python -m full_pipeline_stream " +
-        " --device 0 " +
-        " --conf-yaml models_fi_tdt_dia/pipelines.yaml " +
-        " > {output}"
+        " zcat {input} | head -100 " +
+        " | CUDA_VISIBLE_DEVICES=0 "
+        " python -m tnpp_parse " +
+        " --conf-yaml /usr/src/app/models_fi_tdt_dia/pipelines.yaml " +
+        " > {output} || test $? -eq 141" # Mask 141 = SIGPIPE exits
 
 
 rule get_divergences_opensubs18_fi:
