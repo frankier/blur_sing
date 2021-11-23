@@ -9,10 +9,6 @@
 
 Look in `pose_face_cluster`
 
-## Snakemake for text corpus processing including using extra Singularity containers for utilities
-
-Look in `dispersion`
-
 ## Ray for hyperparameter search
 
 Look in ` ray_param_search`
