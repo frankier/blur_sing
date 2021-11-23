@@ -27,7 +27,7 @@ VIDEO_IDS = [
 
 rule all:
     input:
-        pjoin(WORK, "model.rnndbscan.pkl")
+        directory(pjoin(WORK, "protos"))
 
 
 rule download_videos:
@@ -157,3 +157,16 @@ rule rnndbscan_clus:
         "--model-out {output.model} " +
         "--proto-out {output.proto} " +
         "--num-protos 10"
+
+
+rule write_protos:
+    input:
+        corpusdesc = pjoin(WORK, "corpusdesc.rnndbscan.csv"),
+        proto_spec = pjoin(WORK, "proto.rnndbscan.csv"),
+    output:
+        pjoin(WORK, "protos")
+    shell:
+        "python -m skelshop iden writeprotos " +
+        " {input.proto_spec} " +
+        " {input.corpusdesc} " +
+        " {output}"
