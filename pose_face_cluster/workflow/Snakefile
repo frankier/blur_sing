@@ -2,7 +2,7 @@ from os.path import join as pjoin
 from shutil import which
 
 
-config["FFPROBE_BIN"] = which("ffprobe")
+FFPROBE_BIN = which("ffprobe")
 WORK = config.get("WORK", "work")
 GCN_CONFIG = config.get(
     "GCN_CONFIG",
@@ -11,7 +11,6 @@ GCN_CONFIG = config.get(
         pjoin(os.environ["SETUP_WORK"], "gcn_config.yaml")
     )
 )
-SCRIPTS = pjoin(workflow.basedir, 'scripts')
 
 VIDEO_IDS = [
     "9U4Ha9HQvMo",
@@ -50,8 +49,14 @@ rule segment_shots:
         video = pjoin(WORK, "{base}.mp4")
     output:
         scenes = pjoin(WORK, "{base}.ffprobe.scene.txt")
-    script:
-        pjoin(SCRIPTS, "ffprobe.py")
+    container:
+        "docker://sjourdan/ffprobe"
+    shell:
+        FFPROBE_BIN + " -show_entries frame=pkt_pts" +
+        " -of compact=p=0:nk=1" +
+        " -f lavfi" +
+        " movie={input.video},setpts=N,select='gt(scene\,0.3)'" +
+        " > {output.scenes}"
 
 
 rule dump_skels_untracked:
